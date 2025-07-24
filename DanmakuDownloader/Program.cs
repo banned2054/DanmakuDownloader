@@ -107,7 +107,7 @@ internal class Program
 
                 var fileNameList = await JellyfinUtils.GetEpisodeList(id);
                 var len          = fileNameList!.Count;
-                foreach (var index in episodeList.Where(e => e <= len))
+                foreach (var index in episodeList.Where(e => e <= len && e > 0))
                 {
                     var path = $"{StaticConfig.RootPath}/[{media.PremiereDate:yyyy.MM}]{media.Name}";
                     if (!Directory.Exists(path))
@@ -115,13 +115,7 @@ internal class Program
                         Directory.CreateDirectory(path);
                     }
 
-                    var fileIndex = index - 1;
-                    if (bangumiId == 475032)
-                    {
-                        fileIndex = index;
-                    }
-
-                    var filePath = $"{path}/{media.Name} E{fileNameList[fileIndex].IndexNumber:d2}.xml";
+                    var filePath = $"{path}/{media.Name} E{fileNameList[index - 1].IndexNumber:d2}.xml";
                     await MinIoUtils.DownloadFromR2Async($"{bangumiId}/{index}.xml", filePath);
                     await DanmakuUtils.Filter(filePath);
                 }
@@ -189,7 +183,7 @@ internal class Program
 
                 var fileNameList = await JellyfinUtils.GetEpisodeList(id);
                 var len          = fileNameList!.Count;
-                foreach (var index in episodeList.Where(e => e <= len))
+                foreach (var index in episodeList.Where(e => e <= len && e > 0))
                 {
                     var path = $"{StaticConfig.RootPath}/[{media.PremiereDate:yyyy.MM}]{media.Name}";
                     if (!Directory.Exists(path))
