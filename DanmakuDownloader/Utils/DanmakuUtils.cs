@@ -35,6 +35,8 @@ public class DanmakuUtils
             var changed = await FilterDanmakuFile(filePath);
             if (changed)
                 await Logger.DebugAsync($"[✔] 处理完成: {filePath}");
+            else
+                await Logger.ErrorAsync($"[✗] 处理失败: {filePath}");
         }
         catch (Exception ex)
         {
@@ -100,13 +102,23 @@ public class DanmakuUtils
         if (originalNodes.Count == keptNodes.Count)
         {
             await Logger.DebugAsync("Filtered Danmaku not decrease");
+            if (File.Exists(filePath))
+                return true;
             return false;
         }
 
         root.ReplaceNodes(keptNodes);
 
         doc.Save(filePath);
-        return true;
+
+        if (File.Exists(filePath))
+        {
+            await Logger.DebugAsync($"Filter success, file path: {filePath}");
+            return true;
+        }
+
+        await Logger.DebugAsync($"Filter success, but file not exists: {filePath}");
+        return false;
     }
 
     private static bool IsFiltered(string? text)
