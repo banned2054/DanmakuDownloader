@@ -41,7 +41,6 @@ internal class Program
             {
                 await Logger.InfoAsync($"[{now}] 执行每日任务");
                 _ = Task.Run(DownloadColdDanmaku);
-                await DownloadColdDanmaku();
             }
             else if (now.Minute == 50)
             {
@@ -117,6 +116,11 @@ internal class Program
 
                     var filePath = $"{path}/{media.Name} E{fileNameList[index - 1].IndexNumber:d2}.xml";
                     await MinIoUtils.DownloadFromR2Async($"{bangumiId}/{index}.xml", filePath);
+                    if (!File.Exists(filePath))
+                    {
+                        continue;
+                    }
+
                     await DanmakuUtils.Filter(filePath);
                 }
             }
