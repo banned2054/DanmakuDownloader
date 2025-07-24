@@ -4,7 +4,7 @@ namespace DanmakuDownloader;
 
 public class StaticConfig
 {
-    public static string   Version         => "0.0.2";
+    public static string   Version         => "0.0.3";
     public static string   ApplicationName => "DanmakuDownloader";
     public static string   RootPath        => "/app/data";
     public static string   JsonRulePath    => "/app/block.json";
