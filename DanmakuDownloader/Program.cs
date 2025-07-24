@@ -73,7 +73,7 @@ internal class Program
             return;
         }
 
-        await Logger.InfoAsync("Get Media Folder id, Now try to find anime list.");
+        await Logger.DebugAsync("Get Media Folder id, Now try to find anime list.");
         var mediaList = await JellyfinUtils.GetItems(animeId);
         if (mediaList == null || mediaList.Count == 0)
         {
@@ -125,7 +125,7 @@ internal class Program
         }
         catch (Exception ex)
         {
-            await Logger.ErrorAsync(ex.Message);
+            await Logger.ErrorAsync(ex.ToString());
         }
     }
 
