@@ -64,6 +64,13 @@ public class MinIoUtils
                                   .WithBucket(R2Bucket)
                                   .WithObject(objectPath)
                                   .WithFile(localFilePath));
-        await Logger.InfoAsync($"✅ 已保存到: {localFilePath}");
+        if (File.Exists(localFilePath))
+        {
+            await Logger.InfoAsync($"✅ 已保存到: {localFilePath}");
+        }
+        else
+        {
+            await Logger.ErrorAsync($"弹幕下载失败: {localFilePath}");
+        }
     }
 }
