@@ -102,9 +102,7 @@ public class DanmakuUtils
         if (originalNodes.Count == keptNodes.Count)
         {
             await Logger.DebugAsync("Filtered Danmaku not decrease");
-            if (File.Exists(filePath))
-                return true;
-            return false;
+            return File.Exists(filePath);
         }
 
         root.ReplaceNodes(keptNodes);

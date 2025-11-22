@@ -42,9 +42,9 @@ internal class Program
                 await Logger.InfoAsync($"[{now}] 执行每日任务");
                 _ = Task.Run(DownloadColdDanmaku);
             }
-            else if (now.Minute == 50)
+            else if (now.Minute == 50 && now.Hour % 2 == 0)
             {
-                await Logger.InfoAsync($"[{now}] 执行每小时任务");
+                await Logger.InfoAsync($"[{now}] 执行每两小时任务");
                 _ = Task.Run(DownloadHotDanmaku);
             }
 
