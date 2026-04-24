@@ -365,3 +365,4 @@ FodyWeavers.xsd
 **/Properties/
 **/obj/
 **/bin/
+.env
