@@ -22,23 +22,26 @@ public class DanmakuFilterService
 
     private void LoadFromDisk()
     {
-        if (!File.Exists(StaticConfig.JsonRulePath))
+        lock (_lock)
         {
-            _rules = [];
-            return;
-        }
+            if (!File.Exists(StaticConfig.JsonRulePath))
+            {
+                _rules = [];
+                return;
+            }
 
-        try
-        {
-            var json = File.ReadAllText(StaticConfig.JsonRulePath);
-            _rules = JsonSerializer.Deserialize<List<DanmakuFilter>>(json) ?? [];
-        }
-        catch
-        {
-            _rules = [];
-        }
+            try
+            {
+                var json = File.ReadAllText(StaticConfig.JsonRulePath);
+                _rules = JsonSerializer.Deserialize<List<DanmakuFilter>>(json) ?? [];
+            }
+            catch
+            {
+                _rules = [];
+            }
 
-        RefreshCache();
+            RefreshCache();
+        }
     }
 
     public void UpdateRules(List<DanmakuFilter> newRules)
@@ -50,21 +53,27 @@ public class DanmakuFilterService
         }
     }
 
-    public void InsertRule(DanmakuFilter rule)
-    {
-        lock (_lock)
-        {
-            if (_rules.Contains(rule)) return;
-            _rules.Add(rule);
-            RefreshCache();
-        }
-    }
-
     public void InsertRules(List<DanmakuFilter> rules)
     {
         lock (_lock)
         {
-            _rules.AddRange(rules.Where(rule => !_rules.Contains(rule)));
+            var existing = _rules.ToHashSet();
+            var toAdd    = rules.Where(r => !existing.Contains(r)).ToList();
+
+            if (toAdd.Count <= 0) return;
+            _rules.AddRange(toAdd);
+            RefreshCache();
+        }
+    }
+
+    public void DeleteRules(List<DanmakuFilter> rules)
+    {
+        lock (_lock)
+        {
+            var toDelete = rules.ToHashSet();
+            var removed  = _rules.RemoveAll(r => toDelete.Contains(r));
+
+            if (removed <= 0) return;
             RefreshCache();
         }
     }

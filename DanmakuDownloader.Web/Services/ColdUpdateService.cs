@@ -84,9 +84,9 @@ public class ColdUpdateService(
 
         var config   = configService.Current;
         var jellyfin = scope.ServiceProvider.GetRequiredService<JellyfinService>();
-        jellyfin.Initialize(config.Jellyfin.Url,
-                            config.Jellyfin.UserName,
-                            config.Jellyfin.Password);
+        jellyfin.Initialize(config.Jellyfin!.Url!,
+                            config.Jellyfin!.UserName!,
+                            config.Jellyfin!.Password!);
         await jellyfin.Login();
         var mediaFolderList = await jellyfin.GetMediaFolderList();
         if (mediaFolderList == null || mediaFolderList.Count == 0)
