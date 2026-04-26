@@ -6,7 +6,7 @@ namespace DanmakuDownloader.Web.Sql;
 
 public class SupabaseDatabase(
     DbContextOptions<SupabaseDatabase> options,
-    AppConfigService                   configService) : DbContext(options)
+    ConfigService                   configService) : DbContext(options)
 {
     /// <summary>
     /// 热表，每小时更新

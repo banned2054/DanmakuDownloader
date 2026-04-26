@@ -9,7 +9,7 @@ public class LocalDatabase : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
-        options.UseSqlite("Data Source=job.db");
+        options.UseSqlite($"Data Source={StaticConfig.LocalSqlPath}");
     }
 
     public override int SaveChanges()
@@ -20,7 +20,9 @@ public class LocalDatabase : DbContext
 
         foreach (var entry in entries)
         {
-            ((DanmakuJob)entry.Entity).UpdatedAt = now;
+            var job = (DanmakuJob)entry.Entity;
+            job.UpdatedAt  = now;
+            job.RowVersion = Guid.NewGuid();
         }
 
         return base.SaveChanges();
