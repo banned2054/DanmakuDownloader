@@ -1,4 +1,5 @@
 ﻿using Cronos;
+using DanmakuDownloader.Web.Models.Job;
 using DanmakuDownloader.Web.Sql;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
@@ -8,9 +9,7 @@ using TimeZoneConverter;
 namespace DanmakuDownloader.Web.Services;
 
 public class ColdUpdateService(
-    AppConfigService           configService,
-    MinIoService               minioService,
-    DanmakuService             danmakuService,
+    ConfigService              configService,
     IServiceScopeFactory       scopeFactory,
     ILogger<ColdUpdateService> logger) : BackgroundService
 {
@@ -116,11 +115,16 @@ public class ColdUpdateService(
 
         try
         {
-            var db       = scope.ServiceProvider.GetRequiredService<SupabaseDatabase>();
-            var coldList = await db.EpisodeListCold.ToListAsync(cancellationToken : stoppingToken);
+            var supabaseDb = scope.ServiceProvider.GetRequiredService<SupabaseDatabase>();
+            var localDb    = scope.ServiceProvider.GetRequiredService<LocalDatabase>();
+            var coldList   = await supabaseDb.EpisodeListCold.ToListAsync(cancellationToken : stoppingToken);
+
+            var newJobs = new List<DanmakuJob>();
+
             foreach (var media in mediaList)
             {
-                if (stoppingToken.IsCancellationRequested) break; // 优雅退出响应
+                if (stoppingToken.IsCancellationRequested) break;
+
                 var id    = media.Id;
                 var url   = await jellyfin.GetMediaBangumiUrl(id);
                 var match = BangumiUrlRegex.Match(url);
@@ -141,28 +145,44 @@ public class ColdUpdateService(
 
                 var fileNameList = await jellyfin.GetEpisodeList(id);
                 var len          = fileNameList!.Count;
+
                 foreach (var index in episodeList.Where(e => e <= len && e > 0))
                 {
-                    var path = $"{StaticConfig.RootPath}/[{media.PremiereDate:yyyy.MM}]{media.Name}";
-                    if (!Directory.Exists(path))
-                    {
-                        Directory.CreateDirectory(path);
-                    }
-
+                    var path     = $"{StaticConfig.RootPath}/[{media.PremiereDate:yyyy.MM}]{media.Name}";
                     var filePath = $"{path}/{media.Name} E{fileNameList[index - 1].IndexNumber:d2}.xml";
-                    await minioService.DownloadFromR2Async($"{bangumiId}/{index}.xml", filePath);
-                    if (!File.Exists(filePath))
+                    var existingJob = await localDb.DanmakuJobs.FirstOrDefaultAsync(j =>
+                                 j.SubjectId  == bangumiId &&
+                                 j.Episode    == index     &&
+                                 j.TargetPath == filePath  &&
+                                 (j.Status == JobStatus.Pending || j.Status == JobStatus.Processing),
+                             stoppingToken);
+
+                    if (existingJob != null)
                     {
                         continue;
                     }
 
-                    danmakuService.FilterDanmakuFile(filePath);
+                    newJobs.Add(new DanmakuJob
+                    {
+                        SubjectId   = bangumiId,
+                        Episode     = index,
+                        TargetPath  = filePath,
+                        Status      = JobStatus.Pending,
+                        NextRunTime = DateTime.UtcNow
+                    });
                 }
+            }
+
+            if (newJobs.Count > 0)
+            {
+                localDb.DanmakuJobs.AddRange(newJobs);
+                await localDb.SaveChangesAsync(stoppingToken);
+                logger.LogInformation("冷更新创建了 {Count} 个新任务", newJobs.Count);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex.ToString());
+            logger.LogError(ex, "冷更新创建任务时发生错误");
         }
         finally
         {
