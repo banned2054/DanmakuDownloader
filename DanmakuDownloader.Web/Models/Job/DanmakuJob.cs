@@ -31,9 +31,9 @@ public class DanmakuJob
     [Column("lastError")]
     public string? LastError { get; set; }
 
-    [Timestamp]
+    [ConcurrencyCheck]
     [Column("rowVersion")]
-    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+    public Guid RowVersion { get; set; } = Guid.NewGuid();
 
     [Column("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
