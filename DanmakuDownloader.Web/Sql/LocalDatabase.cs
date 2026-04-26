@@ -12,13 +12,17 @@ public class LocalDatabase : DbContext
         options.UseSqlite("Data Source=job.db");
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    public override int SaveChanges()
     {
-        modelBuilder.Entity<DanmakuJob>(entity =>
+        var now = DateTime.UtcNow;
+        var entries = ChangeTracker.Entries()
+                                   .Where(e => e is { Entity: DanmakuJob, State: EntityState.Modified });
+
+        foreach (var entry in entries)
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.RowVersion)
-                  .IsConcurrencyToken();
-        });
+            ((DanmakuJob)entry.Entity).UpdatedAt = now;
+        }
+
+        return base.SaveChanges();
     }
 }
