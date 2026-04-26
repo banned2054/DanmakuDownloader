@@ -4,7 +4,7 @@ using Minio.Exceptions;
 
 namespace DanmakuDownloader.Web.Services;
 
-public class MinIoService(AppConfigService configService)
+public class MinIoService(ConfigService configService)
 {
     public async Task DownloadFromR2Async(string objectPath, string localFilePath)
     {

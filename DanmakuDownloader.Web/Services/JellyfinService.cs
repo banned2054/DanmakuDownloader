@@ -1,4 +1,5 @@
-﻿using DanmakuDownloader.Web.Models.Jellyfin;
+﻿using System.Reflection;
+using DanmakuDownloader.Web.Models.Jellyfin;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -8,8 +9,12 @@ namespace DanmakuDownloader.Web.Services;
 
 public class JellyfinService(HttpClient httpClient)
 {
-    private readonly string _version    = StaticConfig.Version;
-    private readonly string _deviceName = Environment.MachineName;
+    private readonly string _version = typeof(WebProgram).Assembly
+                                                         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                                                         .InformationalVersion!;
+
+    private readonly string _deviceName      = Environment.MachineName;
+    private readonly string _applicationName = Assembly.GetExecutingAssembly().GetName().Name!;
 
     private string _token    = string.Empty;
     private string _userId   = string.Empty;
@@ -38,7 +43,7 @@ public class JellyfinService(HttpClient httpClient)
     private string GetAuthorizationHeader(bool includeToken = true)
     {
         var header =
-            $"MediaBrowser Client=\"{StaticConfig.ApplicationName}\", Device=\"{_deviceName}\", DeviceId=\"{GenerateStableDeviceId()}\", Version=\"{_version}\"";
+            $"MediaBrowser Client=\"{_applicationName}\", Device=\"{_deviceName}\", DeviceId=\"{GenerateStableDeviceId()}\", Version=\"{_version}\"";
         if (includeToken && !string.IsNullOrEmpty(_token))
         {
             header += $", Token=\"{_token}\"";
