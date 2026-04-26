@@ -6,7 +6,7 @@ namespace DanmakuDownloader.Web.Controllers;
 
 [ApiController]
 [Route("api/v1/config")]
-public class ConfigController(AppConfigService configService) : ControllerBase
+public class ConfigController(ConfigService configService) : ControllerBase
 {
     [HttpGet]
     public Config GetConfig()

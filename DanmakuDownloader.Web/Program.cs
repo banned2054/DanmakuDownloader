@@ -16,7 +16,7 @@ internal class WebProgram
 
     private static void InitBuilder(WebApplicationBuilder builder)
     {
-        builder.Services.AddSingleton<AppConfigService>();
+        builder.Services.AddSingleton<ConfigService>();
         builder.Services.AddSingleton<DanmakuFilterService>();
 
         builder.Services.AddSingleton<MinIoService>();
@@ -24,9 +24,11 @@ internal class WebProgram
 
         builder.Services.AddHttpClient<JellyfinService>();
         builder.Services.AddDbContext<SupabaseDatabase>();
+        builder.Services.AddDbContext<LocalDatabase>();
 
         builder.Services.AddHostedService<ColdUpdateService>();
         builder.Services.AddHostedService<HotUpdateService>();
+        builder.Services.AddHostedService<DanmakuJobExecutorService>();
 
         builder.Services.AddControllers();
         builder.Services.AddOpenApi();
@@ -39,7 +41,7 @@ internal class WebProgram
         app.MapControllers();
 
         var lifetime      = app.Services.GetRequiredService<IHostApplicationLifetime>();
-        var configService = app.Services.GetRequiredService<AppConfigService>();
+        var configService = app.Services.GetRequiredService<ConfigService>();
         var filterService = app.Services.GetRequiredService<DanmakuFilterService>();
 
         lifetime.ApplicationStopping.Register(() =>

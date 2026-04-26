@@ -4,15 +4,15 @@ using System.Text.Json;
 
 namespace DanmakuDownloader.Web.Services;
 
-public class AppConfigService
+public class ConfigService
 {
-    private const string ConfigPath = "data/config.json";
+    private const string ConfigPath = StaticConfig.ConfigPath;
 
     private readonly Lock _lock = new();
 
     public Config Current { get; private set; }
 
-    public AppConfigService()
+    public ConfigService()
     {
         if (File.Exists(ConfigPath))
         {
