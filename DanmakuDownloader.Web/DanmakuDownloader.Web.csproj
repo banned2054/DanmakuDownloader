@@ -3,6 +3,8 @@
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<Nullable>enable</Nullable>
+		<AssemblyName>DanmakuDownloader</AssemblyName>
+		<Version>0.1.0</Version>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<UserSecretsId>5a2661fb-f4c1-43ac-bbc6-fe96d30c4b93</UserSecretsId>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
