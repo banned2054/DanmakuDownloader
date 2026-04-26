@@ -2,7 +2,7 @@
 using DanmakuDownloader.Web.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace DanmakuDownloader.Web;
+namespace DanmakuDownloader.Web.Sql;
 
 public class SupabaseDatabase(
     DbContextOptions<SupabaseDatabase> options,
