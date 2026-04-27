@@ -15,6 +15,6 @@
 		<None Include="launchSettings.json" />
 	</ItemGroup>
 	<ItemGroup>
-		<ProjectReference Include="..\DanmakuDownloader.Web\DanmakuDownloader.Web.csproj" />
+		<ProjectReference Include="..\DanmakuDownloader\DanmakuDownloader.csproj" />
 	</ItemGroup>
 </Project>

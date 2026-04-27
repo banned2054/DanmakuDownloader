@@ -2,5 +2,5 @@
   <Project Path="DanmakuDownloader.Docker/docker-compose.dcproj">
     <Build />
   </Project>
-  <Project Path="DanmakuDownloader.Web/DanmakuDownloader.Web.csproj" />
+  <Project Path="DanmakuDownloader/DanmakuDownloader.csproj" />
 </Solution>
