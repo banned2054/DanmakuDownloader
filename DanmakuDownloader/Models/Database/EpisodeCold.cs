@@ -1,10 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DanmakuDownloader.Models.Database;
 
 [Table("episodeListCold")]
-public class EpisodeCold
+public class EpisodeCold : IEpisode
 {
     [Key]
     [Column("id")]

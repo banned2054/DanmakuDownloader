@@ -1,218 +1,27 @@
-using Cronos;
-using DanmakuDownloader.Models.Job;
+using DanmakuDownloader.Models.Config;
+using DanmakuDownloader.Models.Database;
 using DanmakuDownloader.Sql;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
-using TimeZoneConverter;
 
 namespace DanmakuDownloader.Services;
 
-public class HotUpdateService : BackgroundService
+public class HotUpdateService(
+    ConfigService             configService,
+    IServiceScopeFactory      scopeFactory,
+    ILogger<HotUpdateService> logger)
+    : UpdateServiceBase<Episode>(configService, scopeFactory, logger)
 {
-    private CancellationTokenSource _refreshSignal = new();
+    protected override string DefaultCronExpression => "45 */2 * * *";
 
-    private readonly ConfigService             _configService;
-    private readonly IServiceScopeFactory      _scopeFactory;
-    private readonly ILogger<HotUpdateService> _logger;
+    protected override string UpdateTypeName => "热更新";
 
-    public HotUpdateService(
-        ConfigService             configService,
-        IServiceScopeFactory      scopeFactory,
-        ILogger<HotUpdateService> logger)
+    protected override string? GetCronExpressionFromConfig(TimeConfig? timeConfig)
     {
-        _configService = configService;
-        _scopeFactory  = scopeFactory;
-        _logger        = logger;
-
-        _configService.OnConfigChanged += HandleConfigChanged;
+        return timeConfig?.HotUpdateCronExp;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override DbSet<Episode> GetEpisodeDbSet(SupabaseDatabase db)
     {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            await Work(stoppingToken);
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, _refreshSignal.Token);
-
-            try
-            {
-                var config  = _configService.Current;
-                var cronExp = config.Time == null ? "45 */2 * * *" : config.Time.HotUpdateCronExp;
-
-                if (string.IsNullOrWhiteSpace(cronExp)) cronExp = "45 */2 * * *";
-
-                try
-                {
-                    CronExpression.Parse(cronExp, CronFormat.Standard);
-                }
-                catch (CronFormatException)
-                {
-                    cronExp = "45 */2 * * *";
-                }
-
-                var expression = CronExpression.Parse(cronExp);
-
-                TimeZoneInfo zone;
-                try
-                {
-                    zone = TZConvert.GetTimeZoneInfo(config.Time == null
-                                                         ? "Asia/Shanghai"
-                                                         : config.Time.TimeZone ?? "Asia/Shanghai");
-                }
-                catch (Exception)
-                {
-                    zone = TZConvert.GetTimeZoneInfo("Asia/Shanghai");
-                }
-
-                var next = expression.GetNextOccurrence(DateTimeOffset.UtcNow, zone);
-                if (next.HasValue)
-                {
-                    var delay = next.Value - DateTimeOffset.Now;
-                    if (delay.TotalMilliseconds <= 0) continue;
-
-                    await Task.Delay(delay, linkedCts.Token);
-                }
-                else if (!_configService.IsReady())
-                {
-                    await Task.Delay(Timeout.InfiniteTimeSpan, linkedCts.Token);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                if (!stoppingToken.IsCancellationRequested)
-                {
-                    _refreshSignal = new CancellationTokenSource();
-                }
-            }
-        }
-    }
-
-    private async Task Work(CancellationToken stoppingToken)
-    {
-        if (!_configService.IsReady())
-        {
-            _logger.LogDebug("配置不完整，跳过热更新。");
-            return;
-        }
-
-        using var scope = _scopeFactory.CreateScope();
-
-        var config   = _configService.Current;
-        var jellyfin = scope.ServiceProvider.GetRequiredService<JellyfinService>();
-        jellyfin.Initialize(config.Jellyfin!.Url!,
-                            config.Jellyfin!.UserName!,
-                            config.Jellyfin!.Password!);
-        await jellyfin.Login();
-        var mediaFolderList = await jellyfin.GetMediaFolderList();
-        if (mediaFolderList == null || mediaFolderList.Count == 0)
-        {
-            _logger.LogError("media folder count: 0");
-            return;
-        }
-
-        var animeId = mediaFolderList
-                     .Where(e => e.Name == config.TargetMediaFolder)
-                     .Select(e => e.Id)
-                     .FirstOrDefault();
-        if (animeId == null)
-        {
-            _logger.LogError("Anime id not found");
-            return;
-        }
-
-        _logger.LogDebug("Get Media Folder id, Now try to find anime list.");
-        var mediaList = await jellyfin.GetItems(animeId);
-        if (mediaList == null || mediaList.Count == 0)
-        {
-            _logger.LogError("media count: 0");
-            return;
-        }
-
-        try
-        {
-            var supabaseDb = scope.ServiceProvider.GetRequiredService<SupabaseDatabase>();
-            var localDb    = scope.ServiceProvider.GetRequiredService<LocalDatabase>();
-            var hotList    = await supabaseDb.EpisodeList.ToListAsync(cancellationToken : stoppingToken);
-            var newJobs    = new List<DanmakuJob>();
-
-            foreach (var media in mediaList)
-            {
-                if (stoppingToken.IsCancellationRequested) break;
-
-                var id    = media.Id;
-                var url   = await jellyfin.GetMediaBangumiUrl(id);
-                var match = StaticConfig.BangumiUrlRegex().Match(url);
-                if (!match.Success)
-                {
-                    _logger.LogWarning("{Url} don't match bangumi url regex", url);
-                    continue;
-                }
-
-                var bangumiId = int.Parse(match.Groups["id"].Value);
-                if (hotList.All(e => e.SubjectId != bangumiId))
-                {
-                    continue;
-                }
-
-                var episodeList = hotList.Where(e => e.SubjectId == bangumiId)
-                                         .Select(e => int.Parse(e.EpisodeNum.ToString(CultureInfo.CurrentCulture)));
-
-                var fileNameList = await jellyfin.GetEpisodeList(id);
-                var len          = fileNameList!.Count;
-
-                foreach (var index in episodeList.Where(e => e <= len && e > 0))
-                {
-                    var path     = $"{StaticConfig.RootPath}/[{media.PremiereDate:yyyy.MM}]{media.Name}";
-                    var filePath = $"{path}/{media.Name} E{fileNameList[index - 1].IndexNumber:d2}.xml";
-                    var existingJob = await localDb.DanmakuJobs.FirstOrDefaultAsync(j =>
-                                 j.SubjectId  == bangumiId &&
-                                 j.Episode    == index     &&
-                                 j.TargetPath == filePath  &&
-                                 (j.Status == JobStatus.Pending || j.Status == JobStatus.Processing),
-                             stoppingToken);
-
-                    if (existingJob != null)
-                    {
-                        continue;
-                    }
-
-                    newJobs.Add(new DanmakuJob
-                    {
-                        SubjectId   = bangumiId,
-                        Episode     = index,
-                        TargetPath  = filePath,
-                        Status      = JobStatus.Pending,
-                        NextRunTime = DateTime.UtcNow
-                    });
-                }
-            }
-
-            if (newJobs.Count > 0)
-            {
-                localDb.DanmakuJobs.AddRange(newJobs);
-                await localDb.SaveChangesAsync(stoppingToken);
-                _logger.LogInformation("热更新创建了 {Count} 个新任务", newJobs.Count);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "热更新创建任务时发生错误");
-        }
-        finally
-        {
-            await jellyfin.Logout();
-        }
-    }
-
-    public override void Dispose()
-    {
-        _configService.OnConfigChanged -= HandleConfigChanged;
-        _refreshSignal.Dispose();
-        base.Dispose();
-    }
-
-    private void HandleConfigChanged()
-    {
-        _refreshSignal.Cancel();
+        return db.EpisodeList;
     }
 }
