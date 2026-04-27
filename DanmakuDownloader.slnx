@@ -2,5 +2,6 @@
   <Project Path="DanmakuDownloader.Docker/docker-compose.dcproj">
     <Build />
   </Project>
+  <Project Path="DanmakuDownloader.Test/DanmakuDownloader.Test.csproj" Id="242b894a-eb37-40d3-a6a7-1a4d72813733" />
   <Project Path="DanmakuDownloader/DanmakuDownloader.csproj" />
 </Solution>
