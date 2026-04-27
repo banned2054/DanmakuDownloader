@@ -47,7 +47,6 @@ internal class Program
 
         lifetime.ApplicationStopping.Register(() =>
         {
-            Console.WriteLine("应用正在关闭，正在保存配置到本地...");
             configService.SaveToDisk();
             filterService.SaveToDisk();
         });

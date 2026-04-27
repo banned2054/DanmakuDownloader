@@ -1,4 +1,4 @@
-﻿using DanmakuDownloader.Models;
+using DanmakuDownloader.Models;
 using DanmakuDownloader.Models.Config;
 using System.Text.Json;
 
@@ -10,9 +10,10 @@ public class ConfigService
 
     private readonly Lock _lock = new();
 
-    public Config Current { get; private set; }
+    private ILogger _logger;
+    public  Config  Current { get; private set; }
 
-    public ConfigService()
+    public ConfigService(ILogger<ConfigService> logger)
     {
         if (File.Exists(ConfigPath))
         {
@@ -23,6 +24,8 @@ public class ConfigService
         {
             Current = new Config();
         }
+
+        _logger = logger;
     }
 
 
@@ -43,10 +46,13 @@ public class ConfigService
             var dir = Path.GetDirectoryName(ConfigPath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
+                _logger.LogInformation("Create Directory");
                 Directory.CreateDirectory(dir);
             }
 
+            _logger.LogInformation("Begin write config file");
             File.WriteAllText(ConfigPath, json);
+            _logger.LogInformation("Finish write config file");
         }
     }
 
