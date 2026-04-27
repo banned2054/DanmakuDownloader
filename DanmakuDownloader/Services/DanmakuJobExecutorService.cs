@@ -105,7 +105,7 @@ public class DanmakuJobExecutorService(
             job.Status    = JobStatus.Succeeded;
             job.LastError = null;
 
-            logger.LogInformation("任务 {JobId} 执行成功: {TargetPath}", jobId, job.TargetPath);
+            logger.LogDebug("任务 {JobId} 执行成功: {TargetPath}", jobId, job.TargetPath);
         }
         catch (Exception ex)
         {

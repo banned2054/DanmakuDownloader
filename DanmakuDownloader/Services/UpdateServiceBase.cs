@@ -174,11 +174,11 @@ public abstract class UpdateServiceBase<TEpisode> : BackgroundService where TEpi
                     var path     = $"{StaticConfig.RootPath}/[{media.PremiereDate:yyyy.MM}]{media.Name}";
                     var filePath = $"{path}/{media.Name} E{fileNameList[index - 1].IndexNumber:d2}.xml";
                     var existingJob = await localDb.DanmakuJobs.FirstOrDefaultAsync(j =>
-                            j.SubjectId  == bangumiId &&
-                            j.Episode    == index     &&
-                            j.TargetPath == filePath  &&
-                            (j.Status == JobStatus.Pending || j.Status == JobStatus.Processing),
-                        stoppingToken);
+                                 j.SubjectId  == bangumiId &&
+                                 j.Episode    == index     &&
+                                 j.TargetPath == filePath  &&
+                                 (j.Status == JobStatus.Pending || j.Status == JobStatus.Processing),
+                             stoppingToken);
 
                     if (existingJob != null)
                     {
@@ -200,7 +200,7 @@ public abstract class UpdateServiceBase<TEpisode> : BackgroundService where TEpi
             {
                 localDb.DanmakuJobs.AddRange(newJobs);
                 await localDb.SaveChangesAsync(stoppingToken);
-                _logger.LogInformation("{UpdateType}创建了 {Count} 个新任务", UpdateTypeName, newJobs.Count);
+                _logger.LogDebug("{UpdateType}创建了 {Count} 个新任务", UpdateTypeName, newJobs.Count);
             }
         }
         catch (Exception ex)

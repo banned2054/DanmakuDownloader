@@ -8,25 +8,22 @@ public class ConfigService
 {
     private const string ConfigPath = StaticConfig.ConfigPath;
 
-    private readonly Lock    _lock = new();
-    private readonly ILogger _logger;
+    private readonly Lock _lock = new();
 
     public event Action? OnConfigChanged;
     public Config        Current { get; private set; }
 
-    public ConfigService(ILogger<ConfigService> logger)
+    public ConfigService()
     {
         if (File.Exists(ConfigPath))
         {
             var json = File.ReadAllText(ConfigPath);
-            Current = JsonSerializer.Deserialize<Config>(json) ?? new Config();
+            Current = JsonSerializer.Deserialize<Config>(json, JsonSetting.Options) ?? new Config();
         }
         else
         {
             Current = new Config();
         }
-
-        _logger = logger;
     }
 
 
@@ -49,13 +46,10 @@ public class ConfigService
             var dir = Path.GetDirectoryName(ConfigPath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
-                _logger.LogDebug("Create Directory");
                 Directory.CreateDirectory(dir);
             }
 
-            _logger.LogDebug("Begin write config file");
             File.WriteAllText(ConfigPath, json);
-            _logger.LogDebug("Finish write config file");
         }
     }
 
