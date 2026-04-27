@@ -1,9 +1,8 @@
 name: Docker Build and Publish
 
-# 触发条件：当代码推送到 main 分支，或者手动触发时执行
 on:
-    push:
-        branches: ["main", "master"]
+    release:
+        types: [created]
     workflow_dispatch:
 
 env:
