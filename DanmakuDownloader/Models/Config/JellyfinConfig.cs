@@ -2,13 +2,6 @@
 
 public class JellyfinConfig
 {
-    public void Copy(JellyfinConfig config)
-    {
-        Url      = config.Url;
-        UserName = config.UserName;
-        Password = config.Password;
-    }
-
     public override bool Equals(object? obj)
     {
         return obj switch
