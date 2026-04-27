@@ -1,21 +1,31 @@
-﻿using Cronos;
+using Cronos;
 using DanmakuDownloader.Models.Job;
 using DanmakuDownloader.Sql;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
-using System.Text.RegularExpressions;
 using TimeZoneConverter;
 
 namespace DanmakuDownloader.Services;
 
-public class ColdUpdateService(
-    ConfigService              configService,
-    IServiceScopeFactory       scopeFactory,
-    ILogger<ColdUpdateService> logger) : BackgroundService
+public class ColdUpdateService : BackgroundService
 {
     private CancellationTokenSource _refreshSignal = new();
 
-    private static readonly Regex BangumiUrlRegex = new(@"subject/(?<id>\d+)");
+    private readonly ConfigService              _configService;
+    private readonly IServiceScopeFactory       _scopeFactory;
+    private readonly ILogger<ColdUpdateService> _logger;
+
+    public ColdUpdateService(
+        ConfigService              configService,
+        IServiceScopeFactory       scopeFactory,
+        ILogger<ColdUpdateService> logger)
+    {
+        _configService = configService;
+        _scopeFactory  = scopeFactory;
+        _logger        = logger;
+
+        _configService.OnConfigChanged += HandleConfigChanged;
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -26,10 +36,10 @@ public class ColdUpdateService(
 
             try
             {
-                var config  = configService.Current;
-                var cronExp = config.Time == null ? "30 */2 * * *" : config.Time.ColdUpdateCronExp;
+                var config  = _configService.Current;
+                var cronExp = config.Time == null ? "45 0 * * *" : config.Time.ColdUpdateCronExp;
 
-                if (string.IsNullOrWhiteSpace(cronExp)) cronExp = "30 */2 * * *";
+                if (string.IsNullOrWhiteSpace(cronExp)) cronExp = "45 0 * * *";
 
                 try
                 {
@@ -37,7 +47,7 @@ public class ColdUpdateService(
                 }
                 catch (CronFormatException)
                 {
-                    cronExp = "30 */2 * * *";
+                    cronExp = "45 0 * * *";
                 }
 
                 var expression = CronExpression.Parse(cronExp);
@@ -59,7 +69,12 @@ public class ColdUpdateService(
                 {
                     var delay = next.Value - DateTimeOffset.Now;
                     if (delay.TotalMilliseconds <= 0) continue;
-                    await Task.Delay(delay, stoppingToken);
+
+                    await Task.Delay(delay, linkedCts.Token);
+                }
+                else if (!_configService.IsReady())
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, linkedCts.Token);
                 }
             }
             catch (OperationCanceledException)
@@ -74,18 +89,15 @@ public class ColdUpdateService(
 
     private async Task Work(CancellationToken stoppingToken)
     {
-        if (!configService.IsReady())
+        if (!_configService.IsReady())
         {
-            logger.LogDebug("配置不完整，跳过冷更新。");
+            _logger.LogDebug("配置不完整，跳过冷更新。");
             return;
         }
 
-        logger.LogDebug("========== ColdUpdateService.Work 开始执行 ==========");
-        logger.LogDebug("ConfigService.IsReady(): {IsReady}", configService.IsReady());
+        using var scope = _scopeFactory.CreateScope();
 
-        using var scope = scopeFactory.CreateScope();
-
-        var config   = configService.Current;
+        var config   = _configService.Current;
         var jellyfin = scope.ServiceProvider.GetRequiredService<JellyfinService>();
         jellyfin.Initialize(config.Jellyfin!.Url!,
                             config.Jellyfin!.UserName!,
@@ -94,7 +106,7 @@ public class ColdUpdateService(
         var mediaFolderList = await jellyfin.GetMediaFolderList();
         if (mediaFolderList == null || mediaFolderList.Count == 0)
         {
-            logger.LogError("media folder count: 0");
+            _logger.LogError("media folder count: 0");
             return;
         }
 
@@ -104,15 +116,15 @@ public class ColdUpdateService(
                      .FirstOrDefault();
         if (animeId == null)
         {
-            logger.LogError("Anime id not found");
+            _logger.LogError("Anime id not found");
             return;
         }
 
-        logger.LogDebug("Get Media Folder id, Now try to find anime list.");
+        _logger.LogDebug("Get Media Folder id, Now try to find anime list.");
         var mediaList = await jellyfin.GetItems(animeId);
         if (mediaList == null || mediaList.Count == 0)
         {
-            logger.LogError("media count: 0");
+            _logger.LogError("media count: 0");
             return;
         }
 
@@ -121,8 +133,7 @@ public class ColdUpdateService(
             var supabaseDb = scope.ServiceProvider.GetRequiredService<SupabaseDatabase>();
             var localDb    = scope.ServiceProvider.GetRequiredService<LocalDatabase>();
             var coldList   = await supabaseDb.EpisodeListCold.ToListAsync(cancellationToken : stoppingToken);
-
-            var newJobs = new List<DanmakuJob>();
+            var newJobs    = new List<DanmakuJob>();
 
             foreach (var media in mediaList)
             {
@@ -130,10 +141,10 @@ public class ColdUpdateService(
 
                 var id    = media.Id;
                 var url   = await jellyfin.GetMediaBangumiUrl(id);
-                var match = BangumiUrlRegex.Match(url);
+                var match = StaticConfig.BangumiUrlRegex().Match(url);
                 if (!match.Success)
                 {
-                    logger.LogWarning("{Url} don't match bangumi url regex", url);
+                    _logger.LogWarning("{Url} don't match bangumi url regex", url);
                     continue;
                 }
 
@@ -180,16 +191,28 @@ public class ColdUpdateService(
             {
                 localDb.DanmakuJobs.AddRange(newJobs);
                 await localDb.SaveChangesAsync(stoppingToken);
-                logger.LogInformation("冷更新创建了 {Count} 个新任务", newJobs.Count);
+                _logger.LogInformation("冷更新创建了 {Count} 个新任务", newJobs.Count);
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "冷更新创建任务时发生错误");
+            _logger.LogError(ex, "冷更新创建任务时发生错误");
         }
         finally
         {
             await jellyfin.Logout();
         }
+    }
+
+    public override void Dispose()
+    {
+        _configService.OnConfigChanged -= HandleConfigChanged;
+        _refreshSignal.Dispose();
+        base.Dispose();
+    }
+
+    private void HandleConfigChanged()
+    {
+        _refreshSignal.Cancel();
     }
 }

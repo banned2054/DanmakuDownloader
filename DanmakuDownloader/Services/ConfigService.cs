@@ -8,10 +8,11 @@ public class ConfigService
 {
     private const string ConfigPath = StaticConfig.ConfigPath;
 
-    private readonly Lock _lock = new();
+    private readonly Lock    _lock = new();
+    private readonly ILogger _logger;
 
-    private ILogger _logger;
-    public  Config  Current { get; private set; }
+    public event Action? OnConfigChanged;
+    public Config        Current { get; private set; }
 
     public ConfigService(ILogger<ConfigService> logger)
     {
@@ -35,6 +36,8 @@ public class ConfigService
         {
             Current = newConfig;
         }
+
+        OnConfigChanged?.Invoke();
     }
 
     public void SaveToDisk()
@@ -46,13 +49,13 @@ public class ConfigService
             var dir = Path.GetDirectoryName(ConfigPath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
-                _logger.LogInformation("Create Directory");
+                _logger.LogDebug("Create Directory");
                 Directory.CreateDirectory(dir);
             }
 
-            _logger.LogInformation("Begin write config file");
+            _logger.LogDebug("Begin write config file");
             File.WriteAllText(ConfigPath, json);
-            _logger.LogInformation("Finish write config file");
+            _logger.LogDebug("Finish write config file");
         }
     }
 
