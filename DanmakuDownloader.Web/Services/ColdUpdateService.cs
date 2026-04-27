@@ -80,6 +80,9 @@ public class ColdUpdateService(
             return;
         }
 
+        logger.LogDebug("========== ColdUpdateService.Work 开始执行 ==========");
+        logger.LogDebug("ConfigService.IsReady(): {IsReady}", configService.IsReady());
+
         using var scope = scopeFactory.CreateScope();
 
         var config   = configService.Current;

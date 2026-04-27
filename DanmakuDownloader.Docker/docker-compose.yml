@@ -1,0 +1,9 @@
+services:
+  danmakudownloader.web:
+    image: ${DOCKER_REGISTRY-}danmakudownloaderweb
+    build:
+      context: DanmakuDownloader.Web
+      dockerfile: Dockerfile
+    volumes:
+      - C:\Code\Docker\DanmakuDownloader\data:/app/data
+      - C:\Code\Docker\DanmakuDownloader\anime:/anime

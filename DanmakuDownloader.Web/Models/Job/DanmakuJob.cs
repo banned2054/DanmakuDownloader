@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace DanmakuDownloader.Web.Models.Job;
 
@@ -11,7 +12,7 @@ public class DanmakuJob
     public long Id { get; set; }
 
     [Column("subjectId")]
-    public int SubjectId { get; set; };
+    public int SubjectId { get; set; }
 
     [Column("episode")]
     public int Episode { get; set; }

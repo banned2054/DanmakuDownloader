@@ -1,5 +1,6 @@
 using DanmakuDownloader.Web.Services;
 using DanmakuDownloader.Web.Sql;
+using Microsoft.EntityFrameworkCore;
 
 namespace DanmakuDownloader.Web;
 
@@ -10,7 +11,7 @@ internal class WebProgram
         var builder = WebApplication.CreateBuilder(args);
         InitBuilder(builder);
         var app = builder.Build();
-        InitApplication(app);
+        await InitApplication(app);
         await app.RunAsync();
     }
 
@@ -34,7 +35,7 @@ internal class WebProgram
         builder.Services.AddOpenApi();
     }
 
-    private static void InitApplication(WebApplication app)
+    private static async Task InitApplication(WebApplication app)
     {
         app.UseHttpsRedirection();
         app.UseAuthorization();
@@ -50,5 +51,9 @@ internal class WebProgram
             configService.SaveToDisk();
             filterService.SaveToDisk();
         });
+
+        using var scope     = app.Services.CreateScope();
+        var       dbContext = scope.ServiceProvider.GetRequiredService<LocalDatabase>();
+        await dbContext.Database.MigrateAsync();
     }
 }

@@ -1,5 +1,5 @@
-﻿using System.Reflection;
-using DanmakuDownloader.Web.Models.Jellyfin;
+﻿using DanmakuDownloader.Web.Models.Jellyfin;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -101,7 +101,6 @@ public class JellyfinService(HttpClient httpClient)
     {
         var response = await Fetch("/Library/MediaFolders");
         var result   = JsonSerializer.Deserialize<JellyfinMediaFolderResponse>(response);
-        Console.WriteLine(JsonSerializer.Serialize(result));
         return result!.MediaFolderList;
     }
 
@@ -123,11 +122,6 @@ public class JellyfinService(HttpClient httpClient)
 
         var mediaList = result.MediaList.Where(e => !string.IsNullOrWhiteSpace(e.PremiereDateStr)).ToList();
         mediaList = mediaList.OrderBy(e => e.PremiereDate).ToList();
-        foreach (var media in mediaList)
-        {
-            Console.WriteLine(JsonSerializer.Serialize(media));
-        }
-
         return mediaList;
     }
 
